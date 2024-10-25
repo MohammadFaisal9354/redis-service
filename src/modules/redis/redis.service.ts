@@ -4,14 +4,16 @@ import { Cache } from 'cache-manager';
 
 @Injectable()
 export class RedisService {
+  private redisClient;
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
     try {
-      const redisClient = (this.cacheManager.store as any).getClient();
+      //   const redisClient = (this.cacheManager.store as any).getClient();
+      this.redisClient = (this.cacheManager.store as any).getClient();
       // Log Redis connection events
-      redisClient.on('connect', () => {
+      this.redisClient.on('connect', () => {
         console.log('**** Connected to Redis ****');
       });
-      redisClient.on('error', (error: any) => {
+      this.redisClient.on('error', (error: any) => {
         console.log('Error connecting to Redis:', error);
       });
     } catch (err) {
@@ -19,10 +21,20 @@ export class RedisService {
     }
   }
 
+  /**
+   * Set a value in Redis for a specific key
+   * @param key - Key to set in Redis
+   * @param value - Value to set for the specified key
+   */
   async set(key: string, value: string): Promise<void> {
     await this.cacheManager.set(key, value);
   }
 
+  /**
+   * Get the value of a specific key from Redis
+   * @param key - Key to retrieve from Redis
+   * @returns Value of the specified key
+   */
   async get(key: string): Promise<string> {
     return await this.cacheManager.get(key);
   }
@@ -31,12 +43,136 @@ export class RedisService {
     await this.cacheManager.del(key);
   }
 
+  /**
+   * Clear all keys from Redis
+   */
   async reset(): Promise<void> {
     await this.cacheManager.reset();
   }
 
+  /**
+   * Retrieve all keys from the Redis store
+   * @returns Array of all keys in Redis
+   */
   async cacheStore(): Promise<string[]> {
     return await this.cacheManager.store.keys();
+  }
+
+  //new not tested code below
+  /**
+   * Set a value in Redis with expiration time in seconds
+   * @param key - Key to set in Redis
+   * @param value - Value to set for the specified key
+   * @param ttl - Time to live in seconds for the key
+   */
+  async setWithTTL(key: string, value: string, ttl: number): Promise<void> {
+    await this.cacheManager.set(key, value, ttl);
+  }
+
+  /**
+   * Increment the integer value of a key by 1
+   * @param key - Key to increment in Redis
+   */
+  async increment(key: string): Promise<void> {
+    await this.redisClient.incr(key);
+  }
+
+  /**
+   * Decrement the integer value of a key by 1
+   * @param key - Key to decrement in Redis
+   */
+  async decrement(key: string): Promise<void> {
+    await this.redisClient.decr(key);
+  }
+
+  /**
+   * Append a value to an existing string in Redis
+   * @param key - Key to append value to
+   * @param value - Value to append to the existing key
+   */
+  async append(key: string, value: string): Promise<void> {
+    await this.redisClient.append(key, value);
+  }
+
+  /**
+   * Set a hash (map) field and value in Redis
+   * @param key - Redis key representing the hash
+   * @param field - Field in the hash to set
+   * @param value - Value to set for the specified field
+   */
+  async hset(key: string, field: string, value: string): Promise<void> {
+    await this.redisClient.hset(key, field, value);
+  }
+
+  /**
+   * Get a hash field value by key and field name
+   * @param key - Redis key representing the hash
+   * @param field - Field to retrieve from the hash
+   * @returns Value of the specified field
+   */
+  async hget(key: string, field: string): Promise<string> {
+    return await this.redisClient.hget(key, field);
+  }
+
+  /**
+   * Get all fields and values from a hash
+   * @param key - Redis key representing the hash
+   * @returns Object containing all fields and values in the hash
+   */
+  async hgetAll(key: string): Promise<Record<string, string>> {
+    return await this.redisClient.hgetall(key);
+  }
+
+  /**
+   * Add a value to a Redis set
+   * @param key - Key representing the set in Redis
+   * @param value - Value to add to the set
+   */
+  async sadd(key: string, value: string): Promise<void> {
+    await this.redisClient.sadd(key, value);
+  }
+
+  /**
+   * Retrieve all members of a Redis set
+   * @param key - Key representing the set in Redis
+   * @returns Array of all members in the set
+   */
+  async smembers(key: string): Promise<string[]> {
+    return await this.redisClient.smembers(key);
+  }
+
+  /**
+   * Remove a value from a Redis set
+   * @param key - Key representing the set in Redis
+   * @param value - Value to remove from the set
+   */
+  async srem(key: string, value: string): Promise<void> {
+    await this.redisClient.srem(key, value);
+  }
+
+  /**
+   * Publish a message to a Redis channel
+   * @param channel - Channel to publish to
+   * @param message - Message to publish
+   */
+  async publish(channel: string, message: string): Promise<void> {
+    await this.redisClient.publish(channel, message);
+  }
+
+  /**
+   * Subscribe to a Redis channel
+   * @param channel - Channel to subscribe to
+   * @param callback - Function to handle messages from the channel
+   */
+  async subscribe(
+    channel: string,
+    callback: (message: string) => void,
+  ): Promise<void> {
+    const subscriber = this.redisClient.duplicate();
+    subscriber.on('message', (channel: string, message: string) => {
+      callback(message);
+    });
+    await subscriber.subscribe(channel);
   }
 }
 
